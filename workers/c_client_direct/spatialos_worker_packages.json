@@ -1,0 +1,47 @@
+{
+  "targets": [
+    {
+      "path": "../../dependencies/worker_sdk/c_headers",
+      "type": "worker_sdk",
+      "packages": [
+        {
+          "name": "c_headers"
+        }
+      ]
+    },
+    {
+      "path": "../../dependencies/worker_sdk/lib",
+      "type": "worker_sdk",
+      "packages": [
+        {
+          "name": "c-static-x86_64-clang-macos",
+          "platform": "macos"
+        },
+        {
+          "name": "c-static-x86_64-gcc510_pic-linux",
+          "platform": "linux"
+        }
+      ]
+    },
+    {
+      "path": "../../dependencies/worker_sdk/lib/debug",
+      "type": "worker_sdk",
+      "packages": [
+        {
+          "name": "c-static-x86_64-vc140_mdd-win32",
+          "platform": "windows"
+        }
+      ]
+    },
+    {
+      "path": "../../dependencies/worker_sdk/lib/release",
+      "type": "worker_sdk",
+      "packages": [
+        {
+          "name": "c-static-x86_64-vc140_md-win32",
+          "platform": "windows"
+        }
+      ]
+    }
+  ]
+}
