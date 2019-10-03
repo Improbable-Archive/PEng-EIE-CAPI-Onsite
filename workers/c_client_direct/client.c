@@ -56,6 +56,29 @@ void OnEntityQueryResponse(const Worker_EntityQueryResponseOp* op) {
   }
 }
 
+void OnCommandRequest(Worker_Connection* connection, const Worker_CommandRequestOp* op) {
+  Schema_FieldId command_index = op->request.command_index;
+  printf("received command request (entity: %" PRId64 ", component: %d, command: %d).\n",
+    op->entity_id, op->request.component_id, command_index);
+
+  if (op->request.component_id == CLIENTDATA_COMPONENT_ID && command_index == 1) {
+    Schema_Object* payload = Schema_GetCommandRequestObject(op->request.schema_type);
+    int payload1 = Schema_GetInt32(payload, 1);
+    float payload2 = Schema_GetFloat(payload, 2);
+
+    float sum = payload1 + payload2;
+    Worker_CommandResponse response = { 0 };
+    response.command_index = command_index;
+    response.component_id = op->request.component_id;
+    response.schema_type = Schema_CreateCommandResponse();
+    Schema_Object* response_object = Schema_GetCommandResponseObject(response.schema_type);
+    Schema_AddFloat(response_object, 1, sum);
+    Worker_Connection_SendCommandResponse(connection, op->request_id, &response);
+
+    printf("sending command response. Sum: %f\n", sum);
+  }
+}
+
 int main(int argc, char** argv) {
   srand((unsigned int)time(NULL));
 
@@ -100,6 +123,16 @@ int main(int argc, char** argv) {
   query.snapshot_result_type_component_ids = &position_component_id;
   Worker_Connection_SendEntityQueryRequest(connection, &query, NULL);
 
+  /* Take control of the entity. */
+  Worker_CommandRequest command_request;
+  memset(&command_request, 0, sizeof(command_request));
+  command_request.component_id = LOGIN_COMPONENT_ID;
+  command_request.command_index = 1;
+  command_request.schema_type = Schema_CreateCommandRequest();
+  Worker_CommandParameters command_parameters;
+  command_parameters.allow_short_circuit = 0;
+  Worker_Connection_SendCommandRequest(connection, 1, &command_request, NULL, &command_parameters);
+
   /* Main loop. */
   while (1) {
     Worker_OpList* op_list = Worker_Connection_GetOpList(connection, 0);
@@ -114,6 +147,9 @@ int main(int argc, char** argv) {
         break;
       case WORKER_OP_TYPE_ENTITY_QUERY_RESPONSE:
         OnEntityQueryResponse(&op->op.entity_query_response);
+        break;
+      case WORKER_OP_TYPE_COMMAND_REQUEST:
+        OnCommandRequest(connection, &op->op.command_request);
         break;
       default:
         break;
