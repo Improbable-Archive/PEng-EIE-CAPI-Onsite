@@ -25,11 +25,35 @@ char* GenerateWorkerId(char* worker_id_prefix) {
 
 /** Op handler functions. */
 void OnLogMessage(const Worker_LogMessageOp* op) {
-	printf("log: %s\n", op->message);
+  printf("log: %s\n", op->message);
 }
 
 void OnDisconnect(const Worker_DisconnectOp* op) {
-	printf("disconnected. reason: %s\n", op->reason);
+  printf("disconnected. reason: %s\n", op->reason);
+}
+
+void OnEntityQueryResponse(const Worker_EntityQueryResponseOp* op) {
+  printf("entity query result: %d entities. Status: %d. Results: %p\n", op->result_count,
+    op->status_code, (void*)op->results);
+  if (op->results) {
+    for (uint32_t i = 0; i < op->result_count; ++i) {
+      const Worker_Entity* entity = &op->results[i];
+      printf("- entity %" PRId64 " with %d components", entity->entity_id, entity->component_count);
+      for (uint32_t k = 0; k < entity->component_count; ++k) {
+        if (entity->components[k].component_id == POSITION_COMPONENT_ID) {
+          Schema_Object* coords_object =
+            Schema_GetObject(Schema_GetComponentDataFields(entity->components[k].schema_type), 1);
+          double x = Schema_GetDouble(coords_object, 1);
+          double y = Schema_GetDouble(coords_object, 2);
+          double z = Schema_GetDouble(coords_object, 3);
+          printf(": Position: (%f, %f, %f)\n", x, y, z);
+        }
+      }
+      if (entity->component_count == 0) {
+        printf("\n");
+      }
+    }
+  }
 }
 
 int main(int argc, char** argv) {
@@ -56,7 +80,7 @@ int main(int argc, char** argv) {
   params.network.tcp.multiplex_level = 4;
   params.default_component_vtable = &default_vtable;
   Worker_ConnectionFuture* connection_future =
-	  Worker_ConnectAsync(argv[1], (uint16_t)atoi(argv[2]), worker_id, &params);
+    Worker_ConnectAsync(argv[1], (uint16_t)atoi(argv[2]), worker_id, &params);
   Worker_Connection* connection = Worker_ConnectionFuture_Get(connection_future, NULL);
   Worker_ConnectionFuture_Destroy(connection_future);
   free(worker_id);
@@ -66,27 +90,40 @@ int main(int argc, char** argv) {
 
   Worker_Connection_SendLogMessage(connection, &message);
 
+  /* Send an entity query. */
+  Worker_EntityQuery query;
+  query.constraint.constraint_type = WORKER_CONSTRAINT_TYPE_ENTITY_ID;
+  query.constraint.constraint.entity_id_constraint.entity_id = 1;
+  query.result_type = WORKER_RESULT_TYPE_SNAPSHOT;
+  query.snapshot_result_type_component_id_count = 1;
+  Worker_ComponentId position_component_id = POSITION_COMPONENT_ID;
+  query.snapshot_result_type_component_ids = &position_component_id;
+  Worker_Connection_SendEntityQueryRequest(connection, &query, NULL);
+
   /* Main loop. */
   while (1) {
     Worker_OpList* op_list = Worker_Connection_GetOpList(connection, 0);
     for (size_t i = 0; i < op_list->op_count; ++i) {
-    Worker_Op* op = &op_list->ops[i];
-    switch (op->op_type) {
-    case WORKER_OP_TYPE_DISCONNECT:
-      OnDisconnect(&op->op.disconnect);
-      break;
-    case WORKER_OP_TYPE_LOG_MESSAGE:
-       OnLogMessage(&op->op.log_message);
-       break;
-     default:
-       break;
-       }
+      Worker_Op* op = &op_list->ops[i];
+      switch (op->op_type) {
+      case WORKER_OP_TYPE_DISCONNECT:
+        OnDisconnect(&op->op.disconnect);
+        break;
+      case WORKER_OP_TYPE_LOG_MESSAGE:
+        OnLogMessage(&op->op.log_message);
+        break;
+      case WORKER_OP_TYPE_ENTITY_QUERY_RESPONSE:
+        OnEntityQueryResponse(&op->op.entity_query_response);
+        break;
+      default:
+        break;
+      }
     }
     Worker_OpList_Destroy(op_list);
 
-	if (_kbhit()) {
-		break;
-	}
+    if (_kbhit()) {
+      break;
+    }
   }
 
   Worker_Connection_Destroy(connection);
