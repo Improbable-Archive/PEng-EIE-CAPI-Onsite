@@ -35,10 +35,34 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
 
+  /* Default vtable. This enables schema objects to be passed through the C API directly to us. */
+  Worker_ComponentVtable default_vtable = { 0 };
+
+  /* Generate worker ID. */
+  char* worker_id = GenerateWorkerId(argv[3]);
+
+  /* Connect to SpatialOS. */
+  Worker_ConnectionParameters params = Worker_DefaultConnectionParameters();
+  params.worker_type = "client_direct";
+  params.network.tcp.multiplex_level = 4;
+  params.default_component_vtable = &default_vtable;
+  Worker_ConnectionFuture* connection_future =
+	  Worker_ConnectAsync(argv[1], (uint16_t)atoi(argv[2]), worker_id, &params);
+  Worker_Connection* connection = Worker_ConnectionFuture_Get(connection_future, NULL);
+  Worker_ConnectionFuture_Destroy(connection_future);
+  free(worker_id);
+
+  /* Send a test message. */
+  Worker_LogMessage message = { WORKER_LOG_LEVEL_WARN, "Client", "Connected successfully", NULL };
+
+  Worker_Connection_SendLogMessage(connection, &message);
+
   /* Main loop. */
   while (1) {
     if(_kbhit()){
       break;
     }
   }
+
+  Worker_Connection_Destroy(connection);
 }
