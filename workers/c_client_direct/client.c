@@ -79,6 +79,22 @@ void OnCommandRequest(Worker_Connection* connection, const Worker_CommandRequest
   }
 }
 
+void OnAddComponent(const Worker_AddComponentOp* op) {
+  printf("received add component op (entity: %" PRId64 ", component: %d)\n", op->entity_id,
+    op->data.component_id);
+
+  if (op->data.component_id == POSITION_COMPONENT_ID) {
+    /* Received position data */
+    double x, y, z;
+    Schema_Object* coords_object =
+      Schema_GetObject(Schema_GetComponentDataFields(op->data.schema_type), 1);
+    x = Schema_GetDouble(coords_object, 1);
+    y = Schema_GetDouble(coords_object, 2);
+    z = Schema_GetDouble(coords_object, 3);
+    printf("received improbable.Position initial data: (%f, %f, %f)\n", x, y, z);
+  }
+}
+
 int main(int argc, char** argv) {
   srand((unsigned int)time(NULL));
 
@@ -150,6 +166,9 @@ int main(int argc, char** argv) {
         break;
       case WORKER_OP_TYPE_COMMAND_REQUEST:
         OnCommandRequest(connection, &op->op.command_request);
+        break;
+      case WORKER_OP_TYPE_ADD_COMPONENT:
+        OnAddComponent(&op->op.add_component);
         break;
       default:
         break;
