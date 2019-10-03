@@ -23,6 +23,15 @@ char* GenerateWorkerId(char* worker_id_prefix) {
   return worker_id;
 }
 
+/** Op handler functions. */
+void OnLogMessage(const Worker_LogMessageOp* op) {
+	printf("log: %s\n", op->message);
+}
+
+void OnDisconnect(const Worker_DisconnectOp* op) {
+	printf("disconnected. reason: %s\n", op->reason);
+}
+
 int main(int argc, char** argv) {
   srand((unsigned int)time(NULL));
 
@@ -59,9 +68,25 @@ int main(int argc, char** argv) {
 
   /* Main loop. */
   while (1) {
-    if(_kbhit()){
+    Worker_OpList* op_list = Worker_Connection_GetOpList(connection, 0);
+    for (size_t i = 0; i < op_list->op_count; ++i) {
+    Worker_Op* op = &op_list->ops[i];
+    switch (op->op_type) {
+    case WORKER_OP_TYPE_DISCONNECT:
+      OnDisconnect(&op->op.disconnect);
       break;
+    case WORKER_OP_TYPE_LOG_MESSAGE:
+       OnLogMessage(&op->op.log_message);
+       break;
+     default:
+       break;
+       }
     }
+    Worker_OpList_Destroy(op_list);
+
+	if (_kbhit()) {
+		break;
+	}
   }
 
   Worker_Connection_Destroy(connection);
