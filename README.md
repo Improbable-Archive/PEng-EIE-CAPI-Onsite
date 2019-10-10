@@ -31,14 +31,13 @@ serialization, the other implemented using "vtable" serialization). These worker
 launched with the following commands:
 
 * Client (direct): `spatial local worker launch client_direct local`
-* Client (vtable): `spatial local worker launch client_vtable local`
 
 ## Scenario
 
 This project is used to showcase the C API and how it can be used to implement a simple client
 worker which visualizes the state of a single entity whose position is updated by a "physics"
 worker. As serialization in the C API can be implemented in two different ways, we provide two
-implementations of the same worker in `workers/c_client_direct` and `workers/c_client_vtable`.
+implementations of the same worker in `workers/c_client_direct`.
 Either one of these can be used as a basis for further experimentation, and the client worker that's
 not being used can easily be deleted without breaking any other functionality.
 
